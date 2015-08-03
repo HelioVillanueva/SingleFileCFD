@@ -79,6 +79,13 @@ def read_file(arquivo): # funcao que le arquivos de malha do OpenFOAM
             
         return (arquivo, quantidade)
 
+def read_scalarlist(path):
+    with open(path, 'r') as infile:
+        arquivo = infile.read()
+        arquivo = arquivo[arquivo.find("(")+1:arquivo.find(")")]
+        lista = re.findall(r'\s(\d+?)', arquivo)
+    return lista
+
 def read_bcs_mesh(): # funcao que le condicoes de contorno da malha do OpenFOAM
     with open('./constant/polyMesh/boundary', 'r') as infile: # abre o arquivo a ser lido
         arquivo = infile.read() # le o arquivo como unica string
@@ -229,11 +236,13 @@ points = np.asarray(points);points = points.astype(np.float)
 faces, Nfaces = read_file('./constant/polyMesh/faces')
 faces = np.asarray(faces);faces = faces.astype(np.int)
 ## -- Computa volumes donos das faces na malha
-owner, Nowner = read_file('./constant/polyMesh/owner')
+owner = read_scalarlist('./constant/polyMesh/owner')
 owner = np.asarray(owner);owner = owner.astype(np.int)
+Nowner = len(owner)
 ## -- Computa volumes vizinhos das faces na malha
-neighbour, Nneighbour = read_file('./constant/polyMesh/neighbour')
+neighbour = read_scalarlist('./constant/polyMesh/neighbour')
 neighbour = np.asarray(neighbour);neighbour = neighbour.astype(np.int)
+Nneighbour = len(neighbour)
 
 timeFiles = timer()
 print(" Calculando areas e centros das areas da malha")
