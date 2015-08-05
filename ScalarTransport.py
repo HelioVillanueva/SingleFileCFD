@@ -18,7 +18,7 @@ gamma = 0.1 # k para difusao de temperatura
 SgerInd = 0 # termo fonte de geracao intependente da solucao W/m3
 SgerDep = 0 # termo fonte de geracao dependente da solucao
 rho = 1
-u = 0.5
+u = 0
 ## -- Esquemas de discretizacao
 # linear ou upwind -> div
 # linear -> laplaciano
@@ -215,8 +215,8 @@ def assembly():
         if TipobcDic == 'fixedValue':
             j = NameBCs.index(i)
             for k in range(int(startFace[j]), int(startFace[j])+int(nFaces[j])):
-                SuBC[k] = (2*areaFace[k] * gamma / dPf[k] + rho*uface) * int(valor)
-                SpBC[k] = -2*areaFace[k] * gamma / dPf[k] + rho*uface
+                SuBC[k] = (areaFace[k] * gamma / dPf[k]) * int(valor)
+                SpBC[k] = -areaFace[k] * gamma / dPf[k]
         
     for i in range(Nfaces):
         o = owner[i] # para cada face, o é o valor da lista owner (n do vol de controle)
