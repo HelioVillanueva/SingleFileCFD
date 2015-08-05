@@ -1,0 +1,11 @@
+Exemplo de barra simples (condução unidimensional) com temperaturas fixadas
+nas pontas.
+
+Pasta "3" é solução do OpenFOAM através do solver "laplacianFoam". O caso está
+preparado para simplesmente executar o solver do OpenFOAM.
+
+Para executar o solver em python, simplesmente executar no terminal:
+
+python ScalarTransport.py
+
+O resultado será escrito na pasta "1".
