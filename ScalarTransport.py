@@ -24,40 +24,48 @@ u = 0.5
 # linear -> laplaciano
 # none para anular o termo
 
-DivScheme = 'linear'
-LaplacianScheme = 'none'
+DivScheme = 'none'
+LaplacianScheme = 'linear'
 
 #### FUNCOES DEFINIDAS NO INICIO DO ARQUIVO.
 
-def write_OF(arquivo): ## -- Escreve solucao no formato do OpenFOAM
+def write_OF(varName,solution):
+    '''
+    Write OpenFOAM format solution
+        varName -> the name of the variable to write
+        ex: 'T'
+        
+        solution -> the variable
+        ex: T
+    '''
     np.set_printoptions(threshold='nan')
     dirInicial = './0/'
     dirFinal = './1/'
-    pathInicial = dirInicial + arquivo
-    pathFinal = dirFinal + arquivo
+    pathInicial = dirInicial + varName
+    pathFinal = dirFinal + varName
     if not os.path.exists(dirFinal):
         os.makedirs(dirFinal)
+        
     shutil.copyfile(pathInicial, pathFinal)
-    f = open(pathInicial, 'r')
-    data = f.readlines()
-    f.close()
-    res = str(T).replace(']', ');')
+    with open(pathInicial, 'r') as f:
+        data = f.readlines()
+
+    res = str(solution).replace(']', ');')
     res = res.replace('[','(')
     data.insert(20, res)
     data = "".join(data)
-    f = open(pathFinal, 'w')
-    f.write(data)
-    f.close()
+    with open(pathFinal, 'w') as f:
+        f.write(data)
+
     chop = re.compile('uniform\s+0\;')
-    f = open(pathFinal, 'r')
-    data = f.read()
-    f.close()
+    with open(pathFinal, 'r') as f:
+        data = f.read()
+    
     # chop text between #chop-begin and #chop-end
     data_chopped = chop.sub('nonuniform List<scalar>', data)
     # save result
-    f = open(pathFinal, 'w')
-    f.write(data_chopped)
-    f.close()
+    with open(pathFinal, 'w') as f:
+        f.write(data_chopped)
     
 def read_file(arquivo): # funcao que le arquivos de malha do OpenFOAM
     quantidade = 0
@@ -146,7 +154,7 @@ def assembly():
     dDeltaV = np.zeros((Nneighbour,3));dDelta = np.zeros(Nneighbour)
     aNf = np.zeros(Nneighbour)
 
-    for i in range(Nneighbour):
+    for i in range(Nneighbour): # loop faces internas
         o = owner[i] ; n = neighbour[i]
         dVet[i] = cVol[n] - cVol[o] # distancia entre centros vol P e N
         d[i] = np.linalg.norm(dVet[i]) # modulo distancia entre centros
@@ -159,7 +167,7 @@ def assembly():
         
         dDelta[i] = np.linalg.norm(dDeltaV[i]) # modulo dist corrigida ortogonalidade
         
-        ## Definicao dos esquemas de discretizacao do divergente
+        ## Definicao dos esquemas de discretizacao do divergente TODO
         uface = u
         if DivScheme == 'linear':
             Div = rho*uface/2
@@ -177,8 +185,8 @@ def assembly():
 
         aNf[i] = Div - Laplacian
 
-        A[(o,n)] = A[(o,n)] - aNf[i] # posicionamento aNf superior
-        A[(n,o)] = A[(n,o)] - aNf[i] # idem inferior
+        A[(o,n)] += - aNf[i] # posicionamento aNf superior
+        A[(n,o)] += - aNf[i] # idem inferior
 
     for i in range(Nfaces):
         o = owner[i]
@@ -291,4 +299,4 @@ print ('Tempo para solucao sistema linear: %f segundos' % WallTimeSisLin)
 print ('Tempo total: %f segundos' % WallTimeTot)
 print ('=============================================')
 
-write_OF('T')
+write_OF('T',T)
