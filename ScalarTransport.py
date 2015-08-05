@@ -20,7 +20,7 @@ SgerDep = 0 # termo fonte de geracao dependente da solucao
 rho = 1
 u = 0
 ## -- Esquemas de discretizacao
-# linear ou upwind -> div
+# linear ou upwind -> div (TODO)
 # linear -> laplaciano
 # none para anular o termo
 
