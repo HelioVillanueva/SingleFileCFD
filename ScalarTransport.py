@@ -91,7 +91,7 @@ def read_scalarlist(path):
     with open(path, 'r') as infile:
         arquivo = infile.read()
         arquivo = arquivo[arquivo.find("(")+1:arquivo.find(")")]
-        lista = re.findall(r'\s(\d+?)', arquivo)
+        lista = re.findall(r'\s(\d*\.\d+|\d+)', arquivo)
     return lista
 
 def read_bcs_mesh(): # funcao que le condicoes de contorno da malha do OpenFOAM
@@ -113,8 +113,7 @@ def calc_mesh_faces():
     for i in range(len(faces)): # loop em todas as faces
         
         for j in range(2, len(faces[i])): #varre os indices de cada face (i) comecando pelo terceiro
-            print j
-            print len(faces[i])
+
             vetorA = points[faces[i][j-1]] - points[faces[i][j-2]] #os dois vetores para o prodVetorial
             vetorB = points[faces[i][j]] - points[faces[i][j-2]] #...
             areaFaceV[i] = areaFaceV[i] + np.cross(vetorA, vetorB)/2 # vetor area atraves da soma de cada vet area triangulo
@@ -206,7 +205,7 @@ def assembly():
         valor = str(valor).strip('[\']')
         print re.escape(i),'--->', TipobcDic, '--->',valor # Mostra no terminal as condicoes de contorno
         
-        if TipobcDic == 'empty':
+        if TipobcDic == 'empty' or TipobcDic == 'symmetryPlane':
             j = NameBCs.index(i)
             for k in range(int(startFace[j]), int(startFace[j])+int(nFaces[j])):
                 SuBC[k] = 0
@@ -242,7 +241,11 @@ points, Npoints = read_file('./constant/polyMesh/points')
 points = np.asarray(points);points = points.astype(np.float)
 ## -- Computa faces da malha
 faces, Nfaces = read_file('./constant/polyMesh/faces')
-faces = np.asarray(faces);faces = faces.astype(np.int)
+
+for i in range(len(faces)): # necessario as vezes...
+    faces[i] = np.array(faces[i])
+    faces[i] = faces[i].astype(np.int)
+
 ## -- Computa volumes donos das faces na malha
 owner = read_scalarlist('./constant/polyMesh/owner')
 owner = np.asarray(owner);owner = owner.astype(np.int)
