@@ -1,0 +1,16 @@
+Exemplo de tubo retangular infinito (condução bidimensional) com temperaturas
+fixadas nas faces do interior e exterior do tubo.
+
+Exemplo com malha poliedrica
+
+Pasta "10" é solução do OpenFOAM através do solver "laplacianFoam". O caso está
+preparado para simplesmente executar o solver do OpenFOAM.
+
+Para executar o solver em python, simplesmente executar no terminal:
+
+python ScalarTransport.py
+
+O resultado será escrito na pasta "1".
+
+O caso pode ser visto no ParaView simplesmente carregando o arquivo "TuboRetangular.foam" dentro do ParaView. Caso OpenFOAM instalado, o mesmo 
+procedimento pelo comando "paraFoam" tambem pode ser usado.
