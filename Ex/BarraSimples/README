@@ -4,7 +4,8 @@ nas pontas.
 Pasta "3" é solução do OpenFOAM através do solver "laplacianFoam". O caso está
 preparado para simplesmente executar o solver do OpenFOAM.
 
-Para executar o solver em python, simplesmente executar no terminal:
+Para executar o solver em python, basta copiar o arquivo para a pasta do caso
+e simplesmente executar no terminal:
 
 python ScalarTransport.py
 

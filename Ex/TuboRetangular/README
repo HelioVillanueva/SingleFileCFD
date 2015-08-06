@@ -6,7 +6,8 @@ Exemplo com malha poliedrica
 Pasta "10" é solução do OpenFOAM através do solver "laplacianFoam". O caso está
 preparado para simplesmente executar o solver do OpenFOAM.
 
-Para executar o solver em python, simplesmente executar no terminal:
+Para executar o solver em python, basta copiar o arquivo para a pasta do caso
+e simplesmente executar no terminal:
 
 python ScalarTransport.py
 
@@ -14,3 +15,64 @@ O resultado será escrito na pasta "1".
 
 O caso pode ser visto no ParaView simplesmente carregando o arquivo "TuboRetangular.foam" dentro do ParaView. Caso OpenFOAM instalado, o mesmo 
 procedimento pelo comando "paraFoam" tambem pode ser usado.
+
+Para este caso nas notas de aula da FEI, ajustar a condutividade termica para:
+gamma = 1
+
+* O arquivo "tubo.hdf" é um arquivo no formato do software Salome. Contém
+a geometria CAD e malha. É um exemplo de utilização do Salome, também
+opensource, como pre-processador para o OpenFOAM.
+
+* O arquivo "tubo2DTet.unv" é um arquivo de malha tetraédrica exportado do 
+Salome. Para utilizá-la, basta converter no formato do OpenFOAM pelo comando no
+terminal:
+
+ideasUnvToFoam tubo2DTet.unv
+
+e corrigir o arquivo em "constant/polyMesh/boundary" com os parâmetros a seguir:
+
+    frontAndBack
+    {
+        type            empty;
+        .
+        .
+        .
+    
+    interno
+    {
+        type            patch;
+        .
+        .
+        .
+    externo
+    {
+        type            patch;
+        .
+        .
+        .
+    symHor
+    {
+        type            symmetryPlane;
+        .
+        .
+        .
+    symVert
+    {
+        type            symmetryPlane;
+        .
+        .
+        .
+
+** o comando ideasUnvToFoam exclui a malha poliédrica, vale salvar o diretório
+"constant/polyMesh" antes de usar o comando caso haja interesse em recuperá-la
+futuramente.
+
+** Os comandos para geração da malha poliédrica foram:
+
+1. gerar a malha tetra primeiro e corrigir o arquivo "constant/polyMesh/boundary"
+2. executar no terminal:
+	polyDualMesh -overwrite 75
+	
+	combinePathFaces -overwrite 45
+	
+	renumberMesh - overwrite

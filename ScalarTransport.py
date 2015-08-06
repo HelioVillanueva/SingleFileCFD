@@ -7,7 +7,7 @@ Created on Thu Jun 11 17:23:30 2015
 """
 import numpy as np
 import re
-from scipy.sparse.linalg import *
+from scipy.sparse.linalg import bicg # bicgstab
 import shutil
 import os
 from timeit import default_timer as timer
@@ -19,17 +19,59 @@ SgerInd = 0 # termo fonte de geracao intependente da solucao W/m3
 SgerDep = 0 # termo fonte de geracao dependente da solucao
 rho = 1
 u = 0
+
 ## -- Esquemas de discretizacao
 # linear ou upwind -> div (TODO)
 # linear -> laplaciano
 # none para anular o termo
-
 DivScheme = 'none'
 LaplacianScheme = 'linear'
 
-#### FUNCOES DEFINIDAS NO INICIO DO ARQUIVO.
 
-def write_OF(varName,solution):
+###############################################################################
+# --------------- IO - LEITURA E ESCRITA DE ARQUIVOS ------------------------ #
+###############################################################################
+    
+def read_file(arquivo): # funcao que le arquivos de malha do OpenFOAM
+    quantidade = 0
+    with open(arquivo, 'r') as infile: # abre o arquivo a ser lido
+    
+        for line in infile:
+            if line.strip() == "(": # quando encontra (,
+                break  # remove tudo anterior ao primeiro (
+            quantidade = line.strip() # guarda o valor (str) da qtd de pontos, faces, etc
+
+        quantidade = int(quantidade)# qtd em forma de numero
+        arquivo = [] # declara lista de pontos, faces,etc
+        
+        for line in infile:
+            if line.strip() == ")": # quando encontra ) sozinho na linha, para(break)
+                break
+            line = line.rsplit('(', 1)[-1];line = line.strip()
+            line = line.translate(None, ")");line = line.split(' ') # formatacoes nas linhas
+            arquivo.append(line) # adiciona a linha na lista
+            
+        return (arquivo, quantidade)
+
+def read_scalarlist(path): # func que le arquivos de escalares (owner/neighbour)
+    with open(path, 'r') as infile:
+        arquivo = infile.read()
+        arquivo = arquivo[arquivo.find("(")+1:arquivo.find(")")]
+        lista = re.findall(r'\s(\d*\.\d+|\d+)', arquivo)
+    return lista
+
+def read_bcs_mesh(): # funcao que le condicoes de contorno da malha do OpenFOAM
+    with open('./constant/polyMesh/boundary', 'r') as infile: # abre o arquivo a ser lido
+        arquivo = infile.read() # le o arquivo como unica string
+        arquivo = ''.join(arquivo.split()) # retira todos espacos em branco
+        namebcs = re.findall(r'(\w+)\{type.\}*', arquivo) # encontra nomes das bcs
+        tipobc = re.findall(r'type(\w+)', arquivo) # encontra tipo
+        nfaces = re.findall(r'nFaces(\w+)', arquivo) # encontra id primeira face na lista de faces
+        startface = re.findall(r'startFace(\w+)', arquivo) # encontra id primeira face na lista de faces
+        nfaces = np.asarray(nfaces);nfaces = nfaces.astype(np.int)
+    return (namebcs, tipobc, nfaces, startface)
+
+def write_OF(varName,solution): # func que escreve resultados
     '''
     Write OpenFOAM format solution
         varName -> the name of the variable to write
@@ -66,44 +108,10 @@ def write_OF(varName,solution):
     # save result
     with open(pathFinal, 'w') as f:
         f.write(data_chopped)
-    
-def read_file(arquivo): # funcao que le arquivos de malha do OpenFOAM
-    quantidade = 0
-    with open(arquivo, 'r') as infile: # abre o arquivo a ser lido
-    
-        for line in infile:
-            if line.strip() == "(": # quando encontra (, remove tudo anterior ao primeiro (
-                break
-            quantidade = line.strip() # guarda o valor (str) da qtd de pontos, faces, etc
 
-        quantidade = int(quantidade);arquivo = [] # qtd em numero e declara lista de pontos, faces,etc
-        
-        for line in infile:
-            if line.strip() == ")": # quando encontra ) sozinho na linha, para(break)
-                break
-            line = line.rsplit('(', 1)[-1];line = line.strip()
-            line = line.translate(None, ")");line = line.split(' ') # formatacoes nas linhas
-            arquivo.append(line) # adiciona a linha na lista
-            
-        return (arquivo, quantidade)
-
-def read_scalarlist(path):
-    with open(path, 'r') as infile:
-        arquivo = infile.read()
-        arquivo = arquivo[arquivo.find("(")+1:arquivo.find(")")]
-        lista = re.findall(r'\s(\d*\.\d+|\d+)', arquivo)
-    return lista
-
-def read_bcs_mesh(): # funcao que le condicoes de contorno da malha do OpenFOAM
-    with open('./constant/polyMesh/boundary', 'r') as infile: # abre o arquivo a ser lido
-        arquivo = infile.read() # le o arquivo como unica string
-        arquivo = ''.join(arquivo.split()) # retira todos espacos em branco
-        namebcs = re.findall(r'(\w+)\{type.\}*', arquivo) # encontra nomes das bcs
-        tipobc = re.findall(r'type(\w+)', arquivo) # encontra tipo
-        nfaces = re.findall(r'nFaces(\w+)', arquivo) # encontra id primeira face na lista de faces
-        startface = re.findall(r'startFace(\w+)', arquivo) # encontra id primeira face na lista de faces
-        nfaces = np.asarray(nfaces);nfaces = nfaces.astype(np.int)
-    return (namebcs, tipobc, nfaces, startface)
+###############################################################################
+# --------------- CALCULOS RELATIVOS AS FACES DA MALHA ---------------------- #
+###############################################################################
 
 def calc_mesh_faces():
     areaFace = np.zeros(len(faces))
@@ -116,13 +124,19 @@ def calc_mesh_faces():
 
             vetorA = points[faces[i][j-1]] - points[faces[i][j-2]] #os dois vetores para o prodVetorial
             vetorB = points[faces[i][j]] - points[faces[i][j-2]] #...
-            areaFaceV[i] = areaFaceV[i] + np.cross(vetorA, vetorB)/2 # vetor area atraves da soma de cada vet area triangulo
+            # vetor area atraves da soma de cada vet area triangulo
+            areaFaceV[i] = areaFaceV[i] + np.cross(vetorA, vetorB)/2 
             
         areaFace[i] = np.linalg.norm(areaFaceV[i]) # area de cada face em modulo
-            
-        cFace[i] = (np.sum(points[faces[i]],axis=0))/len(faces[i])#soma e divisao pela qtd de pontos para centro de cada face (i)   
+        
+        # soma e divisao pela qtd de pontos para centro de cada face (i)
+        cFace[i] = (np.sum(points[faces[i]],axis=0))/len(faces[i])
         
     return (areaFace, areaFaceV, cFace)
+
+###############################################################################
+# --------------- CALCULOS RELATIVOS AOS VOLUMES DA MALHA ------------------- #
+###############################################################################
 
 def calc_mesh_vol():
     Nvolumes = np.max(owner)+1 #+1 contagem inicia em 0...
@@ -130,11 +144,15 @@ def calc_mesh_vol():
     qtdFacesVol = np.zeros(Nvolumes)
     
     for i in range(Nvolumes): # loop em todos os volumes
-        facesofvolumeO = np.where(owner==i)[0] # identifica as faces que pertencem ao volume (i)
-        facesofvolumeN = np.where(neighbour==i)[0] # idem so que na lista neighbour pois face nomeada uma unica vez nas listas
-        qtdFacesVol[i] = qtdFacesVol[i] + len(facesofvolumeO) + len(facesofvolumeN) # quantidade de faces em cada volume
+        # identifica as faces que pertencem ao volume (i)
+        facesofvolumeO = np.where(owner==i)[0]
+        # idem so que na lista neighbour pois face nomeada uma unica vez nas listas
+        facesofvolumeN = np.where(neighbour==i)[0]
+        # quantidade de faces em cada volume
+        qtdFacesVol[i] = qtdFacesVol[i] + len(facesofvolumeO) + len(facesofvolumeN)
         
-        cVol[i] = (np.sum(cFace[facesofvolumeO],0) + np.sum(cFace[facesofvolumeN],0))/qtdFacesVol[i] # centro volume soma nos das faces owner e neighbour / total nos
+        # centro volume soma nos das faces owner e neighbour / total nos
+        cVol[i] = (np.sum(cFace[facesofvolumeO],0) + np.sum(cFace[facesofvolumeN],0))/qtdFacesVol[i]
 
         for j in facesofvolumeO:
             vol[i] += np.abs(np.dot(cVol[i]-cFace[j], areaFaceV[j]))
@@ -144,6 +162,10 @@ def calc_mesh_vol():
     
         vol[i] = vol[i]/3
     return (Nvolumes, cVol, vol)
+
+###############################################################################
+# --------------- CALCULOS DAS MATRIZES DO SISTEMA LINEAR ------------------- #
+###############################################################################
 
 def assembly():
     A = np.zeros([Nvolumes,Nvolumes]);Su = np.zeros(Nvolumes) + SgerInd*Vol ## termo FONTE
@@ -177,7 +199,8 @@ def assembly():
         
         ## Definicao dos esquemas de discretizacao do laplaciano
         if LaplacianScheme == 'linear':
-            Laplacian = -dDelta[i] * gamma / d[i] # coef face interna ******** discretizacao linear ************
+            # coef face interna ******** discretizacao linear ************
+            Laplacian = -dDelta[i] * gamma / d[i]
             
         elif LaplacianScheme =='none':
             Laplacian = 0
@@ -219,7 +242,8 @@ def assembly():
         
     for i in range(Nfaces):
         o = owner[i] # para cada face, o é o valor da lista owner (n do vol de controle)
-        Su[o] = Su[o] + SuBC[i] # Su (lado direito) e o inicial (com as geracoes volumetricas) mais contribuicoes cada face
+        # Su (lado direito) e o inicial (com as geracoes volumetricas) mais contribuicoes cada face
+        Su[o] = Su[o] + SuBC[i]
         Sp[o] = Sp[o] + SpBC[i]
 
     for i in range(len(A)):
@@ -227,11 +251,17 @@ def assembly():
         
     return (A, Su)
 
+###############################################################################
+# ----------------------------- INICIO DO SOLVER ---------------------------- #
+###############################################################################
 
-###### ------------- INICIO DO SOLVER
-print ('\n=============================================\n----------------- HelioFOAM -----------------')
-print ('=============================================\n-------- Reinventando a roda para CFD -------')
-print ('----------------- em python -----------------\n=============================================')
+intro = '\n============================================='
+intro += '\n----------------- HelioFOAM -----------------'
+intro += '\n============================================='
+intro += '\n-------- Reinventando a roda para CFD -------'
+intro += '\n----------------- em python -----------------'
+intro += '\n============================================='
+print (intro)
 
 StartTimeTot = timer() # contabilizador do tempo
 
@@ -256,16 +286,21 @@ neighbour = np.asarray(neighbour);neighbour = neighbour.astype(np.int)
 Nneighbour = len(neighbour)
 
 timeFiles = timer()
-print(" Calculando areas e centros das areas da malha")
+
+print(' Calculando areas e centros das areas da malha')
 ## -- Computa a area (modulo e vetor) de cada face e os centros
 areaFace, areaFaceV, cFace = calc_mesh_faces()
+
+timeA = timer()
 timeArea = timer() - timeFiles
 print("done: %f s " %timeArea)
-print(" Calculando volumes e centros dos volumes da malha")
+print(' Calculando volumes e centros dos volumes da malha')
 ## -- Computa o numero de volumes da malha e as coords centroides dos vols
 Nvolumes, cVol, Vol = calc_mesh_vol()
-timeVol = timer() - timeFiles
+
+timeVol = timer() - timeA
 print("done: %f s " %timeVol)
+
 timeMesh = timer()
 
 print ('----------- Condicoes de contorno -----------\n')
@@ -286,18 +321,23 @@ WallTimeSisLin = TimeFinal - StartTimeSisLin
 WallTimeTot = TimeFinal - StartTimeTot
 WallTimeFiles = timeFiles - StartTimeTot
 WallTimeMesh = timeMesh - timeFiles
+WallTimeAssembly = StartTimeSisLin - timeMesh
 
 print ('Volumes: %d' %Nvolumes)
-print ('=============================================\n---------- Matriz dos coeficientes ----------\n')
-print A
-print ('\n--------- Lado direito das equacoes ---------\n')
+final1 = '\n============================================='
+final1 += '\n---------- Matriz dos coeficientes ----------\n\n'
+final2 = '\n\n--------- Lado direito das equacoes ---------\n\n'
+final3 = '\n============================================='
+final3 += '\n--------------- Solucao de T ----------------\n\n'
+final4 = '\n============================================='
+final4 += '\n------------------- Tempos ------------------\n'
+print (final1 + str(A) + final2 + str(Su) + final3 + str(T) + final4)
+
 #np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-print Su
-print ('=============================================\n--------------- Solucao de T ----------------\n')
-print T
-print ('=============================================\n------------------- Tempos ------------------\n')
+
 print ('Tempo para leitura dos arquivos: %f segundos' % WallTimeFiles)
 print ('Tempo para calculos da malha: %f segundos' % WallTimeMesh)
+print ('Tempo para calculos das matrizes: %f segundos' % WallTimeAssembly)
 print ('Tempo para solucao sistema linear: %f segundos' % WallTimeSisLin)
 print ('Tempo total: %f segundos' % WallTimeTot)
 print ('=============================================')
