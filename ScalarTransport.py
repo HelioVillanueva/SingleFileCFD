@@ -99,12 +99,12 @@ def write_OF(varName,solution): # func que escreve resultados
     with open(pathFinal, 'w') as f:
         f.write(data)
 
-    chop = re.compile('uniform\s+0\;')
+    chop = re.compile('internalField\s+uniform\s+0\;')
     with open(pathFinal, 'r') as f:
         data = f.read()
     
     # chop text between #chop-begin and #chop-end
-    data_chopped = chop.sub('nonuniform List<scalar>', data)
+    data_chopped = chop.sub('internalField nonuniform List<scalar>', data)
     # save result
     with open(pathFinal, 'w') as f:
         f.write(data_chopped)
@@ -226,6 +226,11 @@ def assembly():
         TipobcDic = str(TipobcDic).strip('[\']')
         valor = re.findall(my_regex2, arquivo, re.MULTILINE)
         valor = str(valor).strip('[\']')
+        try:
+            valor = float(valor)
+        except:
+            pass
+            
         print re.escape(i),'--->', TipobcDic, '--->',valor # Mostra no terminal as condicoes de contorno
         
         if TipobcDic == 'empty' or TipobcDic == 'symmetryPlane':
@@ -237,7 +242,7 @@ def assembly():
         if TipobcDic == 'fixedValue':
             j = NameBCs.index(i)
             for k in range(int(startFace[j]), int(startFace[j])+int(nFaces[j])):
-                SuBC[k] = (areaFace[k] * gamma / dPf[k]) * int(valor)
+                SuBC[k] = (areaFace[k] * gamma / dPf[k]) * valor
                 SpBC[k] = -areaFace[k] * gamma / dPf[k]
         
     for i in range(Nfaces):
