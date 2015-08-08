@@ -184,7 +184,7 @@ def assembly():
         if np.linalg.norm(dDeltaV[i])<=1e-5: # caso malha ortogonal dDeltaV muito pequeno
             dDeltaV[i] = areaFaceV[i] # e portanto dDeltaV e igual ao vetor area
         else:
-            dDeltaV[i] = dVet[i]*np.square(areaFace[i])/(dDeltaV[i]) # se nao, aplicar correcao
+            dDeltaV[i] = dVet[i]*np.square(areaFace[i])/(np.dot(dVet[i],areaFaceV[i])) # se nao, aplicar correcao
         
         dDelta[i] = np.linalg.norm(dDeltaV[i]) # modulo dist corrigida ortogonalidade
         
