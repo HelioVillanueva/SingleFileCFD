@@ -9,7 +9,7 @@ preparado para simplesmente executar o solver do OpenFOAM.
 Para executar o solver em python, basta copiar o arquivo para a pasta do caso
 e simplesmente executar no terminal:
 
-python ScalarTransport.py
+python basicDiffusion.py
 
 O resultado será escrito na pasta "1".
 

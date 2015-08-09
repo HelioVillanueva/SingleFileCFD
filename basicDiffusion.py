@@ -57,7 +57,7 @@ def read_scalarlist(path): # func que le arquivos de escalares (owner/neighbour)
     with open(path, 'r') as infile:
         arquivo = infile.read()
         arquivo = arquivo[arquivo.find("(")+1:arquivo.find(")")]
-        lista = re.findall(r'\s(\d*\.\d+|\d+)', arquivo)
+        lista = re.findall(r'\s*(\d*\.\d+|\d+)', arquivo)
     return lista
 
 def read_bcs_mesh(): # funcao que le condicoes de contorno da malha do OpenFOAM
